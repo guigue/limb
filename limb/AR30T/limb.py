@@ -7,74 +7,92 @@ from skimage.filters import roberts
 from matplotlib import pyplot as plt
 from sunpy import coordinates
 from astropy import units as u
+from astropy.visualization.mpl_normalize import simple_norm
+
 
 import pdb 
 from CraamTools.fit import Circle
 import CASLEO
 
-fitsnames= ['20220725_flt-000001-206_13_25_28_813_32.fits' , 
-            '20220725_flt-000001-206_13_25_28_813_10.fits' , 
-            '20220725_flt-000001-206_13_25_28_813_128.fits', 
-            '20220725_flt-000001-206_13_25_28_813_82.fits' ] 
+fits_files_1= ['20220725_flt-000001-206_13_25_28_813_32.fits'  , 
+              '20220725_flt-000001-206_13_25_28_813_10.fits'  , 
+              '20220725_flt-000001-206_13_25_28_813_128.fits' , 
+              '20220725_flt-000001-206_13_25_28_813_82.fits'  ] 
+
+fits_files_2= ['AR30T_20261006T200317_264_level00.fits' ,
+              'AR30T_20261006T200518_883_level00.fits' ,
+              'AR30T_20261006T200636_493_level00.fits' ,
+              'AR30T_20261006T200805_535_level00.fits']
+
+files_lists = {'fits_files_1':fits_files_1,'fits_files_2':fits_files_2}
+
 image_size = 1280
 camera_size = [640,480]
 px_size = 2.6
 rot_angle = -15.774 * u.deg # [deg] Camera rotation angle
 
-########################################################################
-#
-# A Python collection of scripts to create a mosaic image of the sun.
-# I used the individual images obtained by scanning the sun 
-# to create a flat field. Images were registered on 2022-07-25 at 16:25 UTC.
-#
-# I did not flat-field the images. Images were chosen to cover the entire
-# solar disc.
-#
-# I normalized each image individually. However, the first one has an
-# illumination issue that I decided not to eliminate. It is not clear what
-# its origin is, since it is not observed in the other images. Unfortunately,
-# all the images from this "corner" have the same illumination problem.
-#
-# Images are not co-aligned with the Sun's North Pole.
-#
-# Use sequence:
-# >>> import limb
-# >>> image,limbs = limb.FullSun(angle=10)
-# The 'angle' parameter is the angle [deg] between successive slices
-# of the solar disc. These slices are then averaged to get the 'mean limb'.
-#
-# The final mean limb seems to be very reasonable, despite the illumination problem
-# that creates a 'bump' in some slices.
-#
-# Results are shown in figures, and saved in FITS files. 
-#
-#-----------------------------------------------------------------------
-#
-# Author: @guiguesp,
-# Date:   2026-09-04, while I listen to the good music selection
-#         from Radioeins, "Nur für Erwachsene, natürlich!"
-#
-#################################################################################
 
-def FullSun(angle=10*u.deg):
+"""
 
-    ##########################################
-    #
-    # This is the main code. It opens the files in a predetermined order (do 
-    # dare to change the order!), finds the center of the disc, and
-    # copies the shifted image to the final full sun image. The result is saved
-    # as FITS file. Then extract slices at each angle=angle and average them. 
-    # The result is saved in a FITS file.
-    # Images are provided for the full (Mosaic) Sun and the averaged normalized 
-    # limb.
-    #
-    #############################################################################
+ A Python collection of scripts to create a mosaic image of the sun.
+ I used the individual images obtained by scanning the sun 
+ to create a flat field. Images were registered on 2022-07-25 at 16:25 UTC.
+
+ I did not flat-field the images. Images were chosen to cover the entire
+ solar disc.
+
+ I normalized each image individually. However, the first one has an
+ illumination issue that I decided not to eliminate. It is not clear what
+ its origin is, since it is not observed in the other images. Unfortunately,
+ all the images from this "corner" have the same illumination problem.
+
+ Images are not co-aligned with the Sun's North Pole.
+
+ Use sequence:
+ >>> import limb
+ >>> image,limbs = limb.FullSun(angle=10,**kwargs)
+ The 'angle' parameter is the angle [deg] between successive slices
+ of the solar disc. These slices are then averaged to get the 'mean limb'.
+
+ Use **kwargs to chose between different normalization functions and add their own keyword arguments:
+    'linear', 'sqrt', etc
+ See https://docs.astropy.org/en/stable/api/astropy.visualization.simple_norm.html
+
+ The final mean limb seems to be very reasonable, despite the illumination problem
+ that creates a 'bump' in some slices.
+
+ Results are shown in figures, and saved in FITS files. 
+
+-----------------------------------------------------------------------
+
+ Author: @guiguesp,
+ Date:   2026-09-04, while I listen to the good music selection
+         from Radioeins, "Nur für Erwachsene, natürlich!"
+ Change Record: 2026-10-15, normalization functions from astropy.visualization        
+
+"""
+
+
+def FullSun(listname='fits_files_2',angle=10*u.deg,**kwargs):
+
+    """
+    
+     This is the main code. It opens the files in a predetermined order (do 
+     not dare to change the order!), finds the center of the disc, and
+     copies the shifted image to the final full sun image. The result is saved
+     as FITS file. Then extract slices at each angle=angle and average them. 
+     The result is saved in a FITS file.
+     Images are provided for the full (Mosaic) Sun and the averaged normalized 
+     limb.
+    
+    """
     
     image = np.zeros([image_size,image_size])
-    
+
+    fitsnames = files_lists[listname]
     for name in fitsnames:
         f = fits.open(name)
-        cx,cy = FindCenter(Normalize(f))
+        cx,cy = FindCenter(Normalize(f,**kwargs))
         dx = int(image_size//2 - cx)
         dy = int(image_size//2 - cy)
         image[dy:dy+camera_size[1],dx:dx+camera_size[0]] = np.copy(f[0].data)
@@ -85,9 +103,8 @@ def FullSun(angle=10*u.deg):
     # Now use sunpy to get the North
     north = coordinates.sun.orientation(CASLEO.Observatory_Coordinates(),dt.datetime(2022,7,25,16,25,28))
     image = ndimage.rotate(image,angle=north,reshape=False,order=1)
-    Create_Fits_Image(image,north)
+    Create_Fits_Image(image,north,fitsnames)
     ###############################################################
-    
    
     limbs = getLimbs(image,angle)
     Create_Fits_Limbs(limbs)
@@ -102,7 +119,7 @@ def FullSun(angle=10*u.deg):
                 transparent=False, bbox_inches=None, pad_inches=0.1,
                 metadata=None)    
     
-    return
+    return image,limbs
 
 def FindCenter(f):
     
@@ -144,26 +161,10 @@ def FindCenter(f):
 
     return int(round(xc)), int(round(yc))
     
-def Normalize(f):
+def Normalize(f,stretch='linear',**kwargs):
 
-    # I tried many different methods.
-    # Histograms show that the distributions (quiet sun, sky) are not
-    # Gaussian. Median and Mode are the best. 
-
-    # Second Method: Median
-    x = f[0].data < 300
-    m = np.median(f[0].data[x])
-    x = f[0].data > 400
-    M = np.median(f[0].data[x])
-
-    # Third Method: Mode
-    x = f[0].data < 300
-    m = stats.mode(f[0].data[x]).mode
-    x = f[0].data > 400
-    M = stats.mode(f[0].data[x]).mode
-    
-    f[0].data = (f[0].data-m)/(M-m)
-
+    norm = simple_norm(f[0].data,stretch=stretch,**kwargs)
+    f[0].data = norm(f[0].data)
     return f
 
 
@@ -199,7 +200,7 @@ def getLimbs(im,a):
     return {'x':x,'limbs':l,'mean_limb':ml/N,'angle':a}
 
 
-def Create_Fits_Image(image,north):
+def Create_Fits_Image(image,north,fitsnames):
 
     name = 'AR30T'
     instrument = 'FLIR A645sc'
