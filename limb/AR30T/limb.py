@@ -68,12 +68,13 @@ rot_angle = -15.774 * u.deg # [deg] Camera rotation angle
  Author: @guiguesp,
  Date:   2026-09-04, while I listen to the good music selection
          from Radioeins, "Nur für Erwachsene, natürlich!"
- Change Record: 2026-10-15, normalization functions from astropy.visualization        
+ Change Record: 2026-10-15, normalization functions from astropy.visualization, two different list fo files, and the Output Fits file name as a keyword argument. 
+          
 
 """
 
 
-def FullSun(listname='fits_files_2',angle=10*u.deg,**kwargs):
+def FullSun(listname='fits_files_2',angle=10*u.deg,OutFitNameRoot='2026-10-06',**kwargs):
 
     """
     
@@ -103,11 +104,11 @@ def FullSun(listname='fits_files_2',angle=10*u.deg,**kwargs):
     # Now use sunpy to get the North
     north = coordinates.sun.orientation(CASLEO.Observatory_Coordinates(),dt.datetime(2022,7,25,16,25,28))
     image = ndimage.rotate(image,angle=north,reshape=False,order=1)
-    Create_Fits_Image(image,north,fitsnames)
+    Create_Fits_Image(image,north,fitsnames,OutFitNameRoot)
     ###############################################################
    
     limbs = getLimbs(image,angle)
-    Create_Fits_Limbs(limbs)
+    Create_Fits_Limbs(limbs,OutFitNameRoot)
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.imshow(image,extent=[-640*2.6,640*2.6,-640*2.6,640*2.6],origin='lower',cmap='gray',vmin=0.3,vmax=1.1)
@@ -200,7 +201,7 @@ def getLimbs(im,a):
     return {'x':x,'limbs':l,'mean_limb':ml/N,'angle':a}
 
 
-def Create_Fits_Image(image,north,fitsnames):
+def Create_Fits_Image(image,north,fitsnames,rootname):
 
     name = 'AR30T'
     instrument = 'FLIR A645sc'
@@ -268,13 +269,13 @@ def Create_Fits_Image(image,north,fitsnames):
     hdul = fits.HDUList([hdu])
 
     # Define filename and save .fits files
-    image_fits_name = 'AR30T_Mosaic-2022-07-05.fits'
+    image_fits_name = 'AR30T_Mosaic-'+rootname+'.fits'
     hdul.writeto(image_fits_name, overwrite=True)
     print(f'\n {image_fits_name} file created with the Sun image') 
     
     return
 
-def Create_Fits_Limbs(limbs):
+def Create_Fits_Limbs(limbs,rootname):
     
     name = 'AR30T'
     instrument = 'FLIR A645sc'
@@ -328,7 +329,7 @@ def Create_Fits_Limbs(limbs):
     tbhdu   = fits.BinTableHDU.from_columns(coldefs)
     hduList = fits.HDUList([hdr,tbhdu])
 
-    limbs_fits_name = 'AR30T_Limbs-2022-07-05_'+str(limbs['angle'].value)+'_deg.fits'
+    limbs_fits_name = 'AR30T_Limbs-'+rootname+'_'+str(limbs['angle'].value)+'_deg.fits'
     hduList.writeto(limbs_fits_name, overwrite=True)
     print(f'\n {limbs_fits_name} file created with the Sun limbs')
     
