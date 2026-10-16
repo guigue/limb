@@ -109,12 +109,14 @@ def FullSun(listname='fits_files_2',angle=10*u.deg,OutFitNameRoot='2026-10-06',*
    
     limbs = getLimbs(image,angle)
     Create_Fits_Limbs(limbs,OutFitNameRoot)
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.imshow(image,extent=[-640*2.6,640*2.6,-640*2.6,640*2.6],origin='lower',cmap='gray',vmin=0.3,vmax=1.1)
     ax.set_xlabel('X [arcsec]')
     ax.set_ylabel('Y [arcsec]')
     ax.set_title('AR30T Mosaic')
+    
     plt.savefig('AR30T_Mosaic.pdf', dpi=None, facecolor='w', edgecolor='w',
                 orientation='portrait', format='pdf',
                 transparent=False, bbox_inches=None, pad_inches=0.1,
@@ -162,9 +164,9 @@ def FindCenter(f):
 
     return int(round(xc)), int(round(yc))
     
-def Normalize(f,stretch='linear',**kwargs):
+def Normalize(f,**kwargs):
 
-    norm = simple_norm(f[0].data,stretch=stretch,**kwargs)
+    norm = simple_norm(f[0].data,**kwargs)
     f[0].data = norm(f[0].data)
     return f
 
@@ -193,6 +195,7 @@ def getLimbs(im,a):
     ax.set_title('AR30T Mean Normalized Limb',fontsize=12)
     ax.set_xlabel('X [arcsec]')
     ax.set_ylabel('Normalized')
+    
     plt.savefig('AR30T_Mean_Normalized_Limb.pdf', dpi=None, facecolor='w', edgecolor='w',
                 orientation='portrait', format='pdf',
                 transparent=False, bbox_inches=None, pad_inches=0.1,
