@@ -26,6 +26,14 @@ fits_files_2= ['AR30T_20261006T200317_264_level00.fits' ,
 
 files_lists = {'fits_files_1':fits_files_1,'fits_files_2':fits_files_2}
 
+comments = ['Level 0.0: uncalibrated image','COPYRIGHT. Grant of use.'                 ,
+            'These data are property of Universidade Presbiteriana Mackenzie (UPM) and' ,
+            'Observatorio Astronomico Felix Aguilar (OAFA). The Centro de Radio'       ,
+            'Astronomia e Astrofisica Mackenzie (CRAAM) and OAFA are responsible'      ,
+            'for their distribution. Grant of use permission is given for Academic'    ,
+            'purposes only.'                                                           ,
+            'Contact: guigue@craam.mackenzie.br; fernando.lopez@um.edu.ar'             ]
+
 image_size = 1280
 camera_size = [640,480]
 px_size = 2.6
@@ -68,7 +76,12 @@ rot_angle = -15.774 * u.deg # [deg] Camera rotation angle
  Author: @guiguesp,
  Date:   2026-09-04, while I listen to the good music selection
          from Radioeins, "Nur für Erwachsene, natürlich!"
- Change Record: 2026-10-15, normalization functions from astropy.visualization, two different list fo files, and the Output Fits file name as a keyword argument. 
+
+ Change Record:
+         2026-10-15, normalization functions from astropy.visualization,
+                     two different list fo files, and the Output Fits file
+                     name as a keyword argument.
+         2026-10-16, normalization function name as a comment in the FITS
           
 
 """
@@ -104,11 +117,11 @@ def FullSun(listname='fits_files_2',angle=10*u.deg,OutFitNameRoot='2026-10-06',*
     # Now use sunpy to get the North
     north = coordinates.sun.orientation(CASLEO.Observatory_Coordinates(),dt.datetime(2022,7,25,16,25,28))
     image = ndimage.rotate(image,angle=north,reshape=False,order=1)
-    Create_Fits_Image(image,north,fitsnames,OutFitNameRoot)
+    Create_Fits_Image(image,north,fitsnames,OutFitNameRoot,**kwargs)
     ###############################################################
    
     limbs = getLimbs(image,angle)
-    Create_Fits_Limbs(limbs,OutFitNameRoot)
+    Create_Fits_Limbs(limbs,OutFitNameRoot,**kwargs)
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -204,7 +217,7 @@ def getLimbs(im,a):
     return {'x':x,'limbs':l,'mean_limb':ml/N,'angle':a}
 
 
-def Create_Fits_Image(image,north,fitsnames,rootname):
+def Create_Fits_Image(image,north,fitsnames,rootname,**kwargs):
 
     name = 'AR30T'
     instrument = 'FLIR A645sc'
@@ -215,12 +228,6 @@ def Create_Fits_Image(image,north,fitsnames,rootname):
     latitude = -31.802222
     elevation = 2430
     telescope = 'AR30T'
-    comments = ['Level 0.0: uncalibrated image','COPYRIGHT. Grant of use.',
-                'These data are property of Universidad Presbiteriana Mackenzie and Observatorio Astronomico Felix Aguilar.',
-                'The Centro de Radio Astronomia e Astrofisica Mackenzie',
-                'and Observatorio Astronomico Felix Aguilar are responsible for their distribution.',
-                'Grant of use permission is given for Academic purposes only.',
-                'Contact:guigue@craam.mackenzie.br; fernando.lopez@um.edu.ar' ]
 
     hdr = fits.Header()
 
@@ -260,13 +267,14 @@ def Create_Fits_Image(image,north,fitsnames,rootname):
     hdr.add_comment(fitsnames[1])
     hdr.add_comment(fitsnames[2])
     hdr.add_comment(fitsnames[3])
+    hdr.add_comment('Normalization function and parameters')
+    for k in kwargs:
+        hdr.add_comment(f'{k} : {kwargs[k]}')
+    hdr.add_comment(' ')        
     hdr.add_comment('Sun North Rotation Angle: {0:6.3f} [deg]'.format(north))
-    hdr.add_comment(comments[0])
-    hdr.add_comment(comments[1])
-    hdr.add_comment(comments[2])
-    hdr.add_comment(comments[3])
-    hdr.add_comment(comments[4])
-    hdr.add_comment(comments[5])
+    hdr.add_comment(' ')
+    for c in comments:
+        hdr.add_comment(c)
 
     hdu = fits.PrimaryHDU(data=image, header=hdr)
     hdul = fits.HDUList([hdu])
@@ -278,7 +286,7 @@ def Create_Fits_Image(image,north,fitsnames,rootname):
     
     return
 
-def Create_Fits_Limbs(limbs,rootname):
+def Create_Fits_Limbs(limbs,rootname,**kwargs):
     
     name = 'AR30T'
     instrument = 'FLIR A645sc'
@@ -289,12 +297,6 @@ def Create_Fits_Limbs(limbs,rootname):
     latitude = -31.802222
     elevation = 2430
     telescope = 'AR30T'
-    comments = ['Level 0.0: uncalibrated image','COPYRIGHT. Grant of use.',
-                'These data are property of Universidad Presbiteriana Mackenzie and Observatorio Astronomico Felix Aguilar.',
-                'The Centro de Radio Astronomia e Astrofisica Mackenzie',
-                'and Observatorio Astronomico Felix Aguilar are responsible for their distribution.',
-                'Grant of use permission is given for Academic purposes only.',
-                'Contact:guigue@craam.mackenzie.br; fernando.lopez@um.edu.ar' ]
 
     hdr = fits.PrimaryHDU()
 
@@ -313,12 +315,13 @@ def Create_Fits_Limbs(limbs,rootname):
     hdr.header.append(('ELEVATIO',elevation, 'Altitude in meters'))
 
     # Comments
-    hdr.header.append(('Comment','Fits File Created from Limbs extracted from a Mosaic',' '))
-    hdr.header.append(('Comment',comments[1],' '))
-    hdr.header.append(('Comment',comments[2],' '))
-    hdr.header.append(('Comment',comments[3],' '))
-    hdr.header.append(('Comment',comments[4],' '))
-    hdr.header.append(('Comment',comments[5],' '))
+    hdr.header.append(('History','Fits File Created from Limbs extracted from a Mosaic',' '))
+    hdr.header.append(('History','Normalization function and parameters:'))
+    for k in kwargs:
+        hdr.header.append(('History','{0:s} : {1:s}'.format(k,kwargs[k])))
+    hdr.header.append(' ')
+    for c in comments:
+        hdr.header.append(('Comment',c,' '))
     
     Nl = limbs['limbs'].shape[1]
     
